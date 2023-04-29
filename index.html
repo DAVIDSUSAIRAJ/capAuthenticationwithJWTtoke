@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication with jwt token</title>
+</head>
+<body>
+<script>
+    import axios from 'axios';
+export const BASE_URL = 'http://kjhdhsdhd-develop-api.solvffjjf.net'; 
+export const REFRESH_TOKEN = '/auth/refreshtoken';
+
+const axiosCustom = axios.create({
+	timeout: 150000,
+	baseURL: BASE_URL
+});
+
+const requestInterceptors = config => {
+	const token = localStorage.getItem('access_token');
+	config.headers.Authorization = `Bearer ${token}`;
+
+	return config;
+};
+
+const responseErrorInterceptors = async error => {
+	const { status } = error.response;
+	const isStatus = Number(status) > 0;
+	const errorStatus = isStatus ? status : '';
+
+
+
+	if (error.response?.status === 401 && error.config && !error.config._isRetry) {
+		const originalRequest = error.config;
+		originalRequest._isRetry = true;
+
+		const previousRT = window.localStorage.getItem('refresh_token');
+
+		const response = await axiosCustom.post(REFRESH_TOKEN, { refreshToken: previousRT });
+
+		window.localStorage.setItem('access_token', response.token);
+		window.localStorage.setItem('refresh_token', response.refreshToken);
+
+		return axiosCustom.request(originalRequest);
+	}else{
+	window.location.href = `error${errorStatus}`;
+        return Promise.reject(error);
+         }
+
+	
+};
+
+const responseSuccess = response => response.data;
+
+axiosCustom.interceptors.request.use(requestInterceptors);
+axiosCustom.interceptors.response.use(responseSuccess, responseErrorInterceptors);
+
+//when we logout we delete the username
+	const logout = async () => {
+   const LOGOUT = '/auth/deleteRefreshToken';
+		const username = window.sessionStorage.getItem('username');
+		await axiosCustom.delete(`${LOGOUT}/${username}`);
+}
+
+export { axiosCustom };
+
+</script>
+</body>
+</html>
